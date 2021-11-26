@@ -17,7 +17,7 @@ namespace FancyScrollView
     /// </summary>
     public class Scroller : UIBehaviour, IPointerUpHandler, IPointerDownHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, IScrollHandler
     {
-        [SerializeField] RectTransform viewport = default;
+        [SerializeField] private RectTransform viewport = default;
 
         /// <summary>
         /// ビューポートのサイズ.
@@ -26,14 +26,14 @@ namespace FancyScrollView
             ? viewport.rect.size.x
             : viewport.rect.size.y;
 
-        [SerializeField] ScrollDirection scrollDirection = ScrollDirection.Vertical;
+        [SerializeField] private ScrollDirection scrollDirection = ScrollDirection.Vertical;
 
         /// <summary>
         /// スクロール方向.
         /// </summary>
         public ScrollDirection ScrollDirection => scrollDirection;
 
-        [SerializeField] MovementType movementType = MovementType.Elastic;
+        [SerializeField] private MovementType movementType = MovementType.Elastic;
 
         /// <summary>
         /// コンテンツがスクロール範囲を越えて移動するときに使用する挙動.
@@ -44,7 +44,7 @@ namespace FancyScrollView
             set => movementType = value;
         }
 
-        [SerializeField] float elasticity = 0.1f;
+        [SerializeField] private float elasticity = 0.1f;
 
         /// <summary>
         /// コンテンツがスクロール範囲を越えて移動するときに使用する弾力性の量.
@@ -55,7 +55,7 @@ namespace FancyScrollView
             set => elasticity = value;
         }
 
-        [SerializeField] float scrollSensitivity = 1f;
+        [SerializeField] private float scrollSensitivity = 1f;
 
         /// <summary>
         /// <see cref="ViewportSize"/> の端から端まで Drag したときのスクロール位置の変化量.
@@ -66,7 +66,7 @@ namespace FancyScrollView
             set => scrollSensitivity = value;
         }
 
-        [SerializeField] bool inertia = true;
+        [SerializeField] private bool inertia = true;
 
         /// <summary>
         /// 慣性を使用するかどうか. <c>true</c> を指定すると慣性が有効に, <c>false</c> を指定すると慣性が無効になります.
@@ -77,7 +77,7 @@ namespace FancyScrollView
             set => inertia = value;
         }
 
-        [SerializeField] float decelerationRate = 0.03f;
+        [SerializeField] private float decelerationRate = 0.03f;
 
         /// <summary>
         /// スクロールの減速率. <see cref="Inertia"/> が <c>true</c> の場合のみ有効です.
@@ -88,7 +88,9 @@ namespace FancyScrollView
             set => decelerationRate = value;
         }
 
-        [SerializeField] Snap snap = new Snap {
+        [SerializeField]
+        private Snap snap = new Snap
+        {
             Enable = true,
             VelocityThreshold = 0.5f,
             Duration = 0.3f,
@@ -107,7 +109,7 @@ namespace FancyScrollView
             set => snap.Enable = value;
         }
 
-        [SerializeField] bool draggable = true;
+        [SerializeField] private bool draggable = true;
 
         /// <summary>
         /// Drag 入力を受付けるかどうか.
@@ -118,13 +120,21 @@ namespace FancyScrollView
             set => draggable = value;
         }
 
-        [SerializeField] Scrollbar scrollbar = default;
+        [SerializeField] private Scrollbar scrollbar = default;
 
         /// <summary>
         /// スクロールバーのオブジェクト.
         /// </summary>
         public Scrollbar Scrollbar => scrollbar;
 
+        [Serializable]
+        private class MovementLimitation
+        {
+            public bool Enable;
+            [Min(1)] public int MaxDistance = 1;
+        }
+
+        [SerializeField] private MovementLimitation movementLimitation;
         /// <summary>
         /// 現在のスクロール位置.
         /// </summary>
@@ -142,25 +152,25 @@ namespace FancyScrollView
             }
         }
 
-        readonly AutoScrollState autoScrollState = new AutoScrollState();
+        private readonly AutoScrollState autoScrollState = new AutoScrollState();
 
-        Action<float> onValueChanged;
-        Action<int> onSelectionChanged;
+        private Action<float> onValueChanged;
+        private Action<int> onSelectionChanged;
 
-        Vector2 beginDragPointerPosition;
-        float scrollStartPosition;
-        float prevPosition;
-        float currentPosition;
+        private Vector2 beginDragPointerPosition;
+        private float scrollStartPosition;
+        private float prevPosition;
+        private float currentPosition;
 
-        int totalCount;
+        private int totalCount;
 
-        bool hold;
-        bool scrolling;
-        bool dragging;
-        float velocity;
+        private bool hold;
+        private bool scrolling;
+        private bool dragging;
+        private float velocity;
 
         [Serializable]
-        class Snap
+        private class Snap
         {
             public bool Enable;
             public float VelocityThreshold;
@@ -168,9 +178,9 @@ namespace FancyScrollView
             public Ease Easing;
         }
 
-        static readonly EasingFunction DefaultEasingFunction = Easing.Get(Ease.OutCubic);
+        private static readonly EasingFunction DefaultEasingFunction = Easing.Get(Ease.OutCubic);
 
-        class AutoScrollState
+        private class AutoScrollState
         {
             public bool Enable;
             public bool Elastic;
@@ -260,6 +270,8 @@ namespace FancyScrollView
             {
                 Position = CircularPosition(position, totalCount);
                 onComplete?.Invoke();
+
+                UpdateSelection(Mathf.RoundToInt(CircularPosition(Position, totalCount)));
                 return;
             }
 
@@ -332,7 +344,7 @@ namespace FancyScrollView
                 return;
             }
 
-            if (hold && snap.Enable)
+            if (hold && SnapEnabled)
             {
                 UpdateSelection(Mathf.Clamp(Mathf.RoundToInt(currentPosition), 0, totalCount - 1));
                 ScrollTo(Mathf.RoundToInt(currentPosition), snap.Duration, snap.Easing);
@@ -371,6 +383,8 @@ namespace FancyScrollView
             {
                 position += CalculateOffset(position);
             }
+
+            LimitMovement(ref position);
 
             if (autoScrollState.Enable)
             {
@@ -423,6 +437,8 @@ namespace FancyScrollView
                            * scrollSensitivity
                            + scrollStartPosition;
 
+            LimitMovement(ref position);
+
             var offset = CalculateOffset(position);
             position += offset;
 
@@ -448,7 +464,24 @@ namespace FancyScrollView
             dragging = false;
         }
 
-        float CalculateOffset(float position)
+        private bool LimitMovement(ref float position)
+        {
+            if (movementLimitation.Enable)
+            {
+                var distanceFromStart = position - scrollStartPosition;
+                if (Mathf.Abs(distanceFromStart) > movementLimitation.MaxDistance)
+                {
+                    position = scrollStartPosition + Mathf.Sign(distanceFromStart) * movementLimitation.MaxDistance;
+                    return true;
+                }
+
+                return false;
+            }
+
+            return false;
+        }
+
+        private float CalculateOffset(float position)
         {
             if (movementType == MovementType.Unrestricted)
             {
@@ -468,9 +501,10 @@ namespace FancyScrollView
             return 0f;
         }
 
-        void UpdatePosition(float position, bool updateScrollbar = true)
+        private void UpdatePosition(float position, bool updateScrollbar = true)
         {
-            onValueChanged?.Invoke(currentPosition = position);
+            currentPosition = position;
+            onValueChanged?.Invoke(position);
 
             if (scrollbar && updateScrollbar)
             {
@@ -478,12 +512,17 @@ namespace FancyScrollView
             }
         }
 
-        void UpdateSelection(int index) => onSelectionChanged?.Invoke(index);
+        private void UpdateSelection(int index)
+        {
+            onSelectionChanged?.Invoke(index);
+        }
 
-        float RubberDelta(float overStretching, float viewSize) =>
-            (1 - 1 / (Mathf.Abs(overStretching) * 0.55f / viewSize + 1)) * viewSize * Mathf.Sign(overStretching);
+        private static float RubberDelta(float overStretching, float viewSize)
+        {
+            return (1 - 1 / (Mathf.Abs(overStretching) * 0.55f / viewSize + 1)) * viewSize * Mathf.Sign(overStretching);
+        }
 
-        void Update()
+        private void Update()
         {
             var deltaTime = Time.unscaledDeltaTime;
             var offset = CalculateOffset(currentPosition);
@@ -531,7 +570,7 @@ namespace FancyScrollView
 
                     UpdateSelection(Mathf.Clamp(Mathf.RoundToInt(position), 0, totalCount - 1));
                 }
-                else if (inertia)
+                else if (Inertia)
                 {
                     velocity *= Mathf.Pow(decelerationRate, deltaTime);
 
@@ -542,10 +581,13 @@ namespace FancyScrollView
 
                     position += velocity * deltaTime;
 
-                    if (snap.Enable && Mathf.Abs(velocity) < snap.VelocityThreshold)
-                    {
+                    var isLimited = LimitMovement(ref position);
+
+                    if (isLimited)
+                        ScrollTo(Mathf.RoundToInt(currentPosition), 0f, snap.Easing);
+                    else if (SnapEnabled && Mathf.Abs(velocity) < snap.VelocityThreshold)
                         ScrollTo(Mathf.RoundToInt(currentPosition), snap.Duration, snap.Easing);
-                    }
+
                 }
                 else
                 {
@@ -570,7 +612,7 @@ namespace FancyScrollView
                 }
             }
 
-            if (!autoScrollState.Enable && (dragging || scrolling) && inertia)
+            if (!autoScrollState.Enable && (dragging || scrolling) && Inertia)
             {
                 var newVelocity = (currentPosition - prevPosition) / deltaTime;
                 velocity = Mathf.Lerp(velocity, newVelocity, deltaTime * 10f);
@@ -580,7 +622,7 @@ namespace FancyScrollView
             scrolling = false;
         }
 
-        float CalculateMovementAmount(float sourcePosition, float destPosition)
+        private float CalculateMovementAmount(float sourcePosition, float destPosition)
         {
             if (movementType != MovementType.Unrestricted)
             {
@@ -597,6 +639,9 @@ namespace FancyScrollView
             return amount;
         }
 
-        float CircularPosition(float p, int size) => size < 1 ? 0 : p < 0 ? size - 1 + (p + 1) % size : p % size;
+        private static float CircularPosition(float p, int size)
+        {
+            return size < 1 ? 0 : p < 0 ? size - 1 + (p + 1) % size : p % size;
+        }
     }
 }

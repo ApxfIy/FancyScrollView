@@ -15,21 +15,22 @@ namespace FancyScrollView
     [CanEditMultipleObjects]
     public class ScrollerEditor : Editor
     {
-        SerializedProperty viewport;
-        SerializedProperty scrollDirection;
-        SerializedProperty movementType;
-        SerializedProperty elasticity;
-        SerializedProperty scrollSensitivity;
-        SerializedProperty inertia;
-        SerializedProperty decelerationRate;
-        SerializedProperty snap;
-        SerializedProperty draggable;
-        SerializedProperty scrollbar;
+        private SerializedProperty viewport;
+        private SerializedProperty scrollDirection;
+        private SerializedProperty movementType;
+        private SerializedProperty elasticity;
+        private SerializedProperty scrollSensitivity;
+        private SerializedProperty inertia;
+        private SerializedProperty decelerationRate;
+        private SerializedProperty snap;
+        private SerializedProperty draggable;
+        private SerializedProperty scrollbar;
+        private SerializedProperty movementLimitation;
 
-        AnimBool showElasticity;
-        AnimBool showInertiaRelatedValues;
+        private AnimBool showElasticity;
+        private AnimBool showInertiaRelatedValues;
 
-        void OnEnable()
+        private void OnEnable()
         {
             viewport = serializedObject.FindProperty("viewport");
             scrollDirection = serializedObject.FindProperty("scrollDirection");
@@ -41,25 +42,26 @@ namespace FancyScrollView
             snap = serializedObject.FindProperty("snap");
             draggable = serializedObject.FindProperty("draggable");
             scrollbar = serializedObject.FindProperty("scrollbar");
+            movementLimitation = serializedObject.FindProperty("movementLimitation");
 
             showElasticity = new AnimBool(Repaint);
             showInertiaRelatedValues = new AnimBool(Repaint);
             SetAnimBools(true);
         }
 
-        void OnDisable()
+        private void OnDisable()
         {
             showElasticity.valueChanged.RemoveListener(Repaint);
             showInertiaRelatedValues.valueChanged.RemoveListener(Repaint);
         }
 
-        void SetAnimBools(bool instant)
+        private void SetAnimBools(bool instant)
         {
             SetAnimBool(showElasticity, !movementType.hasMultipleDifferentValues && movementType.enumValueIndex == (int)MovementType.Elastic, instant);
             SetAnimBool(showInertiaRelatedValues, !inertia.hasMultipleDifferentValues && inertia.boolValue, instant);
         }
 
-        void SetAnimBool(AnimBool a, bool value, bool instant)
+        private void SetAnimBool(AnimBool a, bool value, bool instant)
         {
             if (instant)
             {
@@ -83,41 +85,38 @@ namespace FancyScrollView
             EditorGUILayout.PropertyField(scrollSensitivity);
             EditorGUILayout.PropertyField(inertia);
             DrawInertiaRelatedValues();
+            EditorGUILayout.PropertyField(snap);
+            EditorGUILayout.PropertyField(movementLimitation);
             EditorGUILayout.PropertyField(draggable);
             EditorGUILayout.PropertyField(scrollbar);
             serializedObject.ApplyModifiedProperties();
         }
 
-        void DrawMovementTypeRelatedValue()
+        private void DrawMovementTypeRelatedValue()
         {
-            using (var group = new EditorGUILayout.FadeGroupScope(showElasticity.faded))
+            using var group = new EditorGUILayout.FadeGroupScope(showElasticity.faded);
+            if (!group.visible)
             {
-                if (!group.visible)
-                {
-                    return;
-                }
+                return;
+            }
 
-                using (new EditorGUI.IndentLevelScope())
-                {
-                    EditorGUILayout.PropertyField(elasticity);
-                }
+            using (new EditorGUI.IndentLevelScope())
+            {
+                EditorGUILayout.PropertyField(elasticity);
             }
         }
 
-        void DrawInertiaRelatedValues()
+        private void DrawInertiaRelatedValues()
         {
-            using (var group = new EditorGUILayout.FadeGroupScope(showInertiaRelatedValues.faded))
+            using var group = new EditorGUILayout.FadeGroupScope(showInertiaRelatedValues.faded);
+            if (!group.visible)
             {
-                if (!group.visible)
-                {
-                    return;
-                }
+                return;
+            }
 
-                using (new EditorGUI.IndentLevelScope())
-                {
-                    EditorGUILayout.PropertyField(decelerationRate);
-                    EditorGUILayout.PropertyField(snap);
-                }
+            using (new EditorGUI.IndentLevelScope())
+            {
+                EditorGUILayout.PropertyField(decelerationRate);
             }
         }
     }
