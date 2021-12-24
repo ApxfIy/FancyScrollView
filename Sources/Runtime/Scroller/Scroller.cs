@@ -223,13 +223,25 @@ namespace FancyScrollView
         /// スクロール位置が変化したときのコールバックを設定します.
         /// </summary>
         /// <param name="callback">スクロール位置が変化したときのコールバック.</param>
-        public void OnValueChanged(Action<float> callback) => onValueChanged = callback;
+        public void OnValueChanged(Action<float> callback)
+        {
+            if (onValueChanged == null)
+                onValueChanged = callback;
+            else
+                onValueChanged += callback;
+        }
 
         /// <summary>
         /// 選択位置が変化したときのコールバックを設定します.
         /// </summary>
         /// <param name="callback">選択位置が変化したときのコールバック.</param>
-        public void OnSelectionChanged(Action<int> callback) => onSelectionChanged = callback;
+        public void OnSelectionChanged(Action<int> callback)
+        {
+            if (onSelectionChanged == null)
+                onSelectionChanged = callback;
+            else
+                onSelectionChanged += callback;
+        }
 
         /// <summary>
         /// アイテムの総数を設定します.
